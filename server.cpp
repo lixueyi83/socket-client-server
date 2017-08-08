@@ -18,12 +18,13 @@
 int socket_main(const char* ip_addr, int port);
 
 using namespace std;
-char qr_code[50] = {0};
+char qr_code[50] = "Where there is a will, there is a way.";
+const char reply[50] = "Where there is a will, there is a way.";
 
 int main()
 {
-	const char* ip_addr = "127.0.0.1";
-	int port = 9734;
+	const char* ip_addr = "192.168.0.14";
+	int port = 10002;
 	std::thread t(socket_main, ip_addr, port);
 	t.join();
 	//socket_main(ip_addr, port);
@@ -103,7 +104,7 @@ int socket_main(const char* ip_addr, int port)
                     client_sockfd = accept(server_sockfd, 
                         (struct sockaddr *)&client_address, &client_len);
                     FD_SET(client_sockfd, &readfds);
-                    printf("adding client on fd %d\n", client_sockfd);
+                    printf("adding client on fd %d\n", client_sockfd); 
                 }
 
 /*  If it isn't the server, it must be client activity.
@@ -125,8 +126,8 @@ int socket_main(const char* ip_addr, int port)
                         memset(qr_code, 0, 50);
                         read(fd, qr_code, 50);
                         printf("server rcvd: %s\n", qr_code);
-                        printf("server sent: %s\n", qr_code);
-                        write(fd, qr_code, 50);
+                        printf("server sent: %s\n", reply);
+                        write(fd, reply, 50);
                     }
                 }
             }

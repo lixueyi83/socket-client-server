@@ -23,8 +23,8 @@ int main()
 /*  Name the socket, as agreed with the server.  */
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    address.sin_port = htons(9734);
+    address.sin_addr.s_addr = inet_addr("192.168.0.14");
+    address.sin_port = htons(10002);
     len = sizeof(address);
 
 /*  Now connect our socket to the server's socket.  */
@@ -36,11 +36,15 @@ int main()
         exit(1);
     }
 
-/*  We can now read/write via sockfd.  */
 
-    write(sockfd, &ch, 50);
-    read(sockfd, &ch, 50);
-    printf("char from server = %s\n", ch);
+/*  We can now read/write via sockfd.  */
+    for(int i=0; i< 10; i++)
+    {
+	write(sockfd, &ch, 50);
+	read(sockfd, &ch, 50);
+	printf("char from server = %s\n", ch);
+	sleep(1);
+    }
     close(sockfd);
     exit(0);
 }
