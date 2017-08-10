@@ -78,7 +78,7 @@ int main()
         client_len = sizeof(client_address);
         client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
 
-        cout << "new client with client_sockfd: " << client_sockfd << " is connected." << endl;
+        cout << "new client with client_sockfd " << client_sockfd << " is connected." << endl;
 
         std::thread th(client_handler, client_sockfd);
         th.detach();
