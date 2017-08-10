@@ -23,7 +23,7 @@ const char reply[50] = "Where there is a will, there is a way.";
 
 int main()
 {
-	const char* ip_addr = "192.168.0.14";
+	const char* ip_addr = "192.168.1.144";
 	int port = 10002;
 	std::thread t(socket_main, ip_addr, port);
 	t.join();
