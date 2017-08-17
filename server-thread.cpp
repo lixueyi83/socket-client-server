@@ -7,41 +7,43 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <cstring>
 #include <thread> 
 
 #include <iostream>
 using namespace std;
 
-char recv_buf[10];
-char send_buf[10] = "ping";
-
-void wait_for_paramters()
-{
-	char cmd;
-	
-	cout << "enter S or s to send a message to clients: ";
-	while(cin >> cmd)
-    {
-        if('S' == cmd or 's' == cmd)
-            break;
-        else 
-            cout << "please enter S or s to send message to clients." << endl;
-    }
-
-    cout << "message will be sent to clients." << endl;
-}
 
 void client_handler(int client_sockfd)
 {
+	char recv_buf[10];
+	char send_buf[10] = "ping";
+
     /*  We can now read/write to client on client_sockfd.  */
     while(1)
-    {   
-        wait_for_paramters();
-       		       
-        write(client_sockfd, &send_buf, 10);
-        printf("server-send: %s\n", send_buf);
-        read(client_sockfd, &recv_buf, 10);
-        printf("server-rcvd: %s\n", recv_buf);
+    {    
+		char cmd;
+		memset(recv_buf, 0, sizeof(char));
+		
+		cout << "enter S or s to send a message to clients: ";
+		while(cin >> cmd)
+		{
+		    if('S' == cmd or 's' == cmd)
+		    {
+		    	cout << "message will be sent to clients." << endl;
+		    	write(client_sockfd, &send_buf, 10);
+				printf("server-send: %s\n", send_buf);
+				read(client_sockfd, &recv_buf, 10);
+				printf("server-rcvd: %s\n", recv_buf);
+				break;
+		    }
+		    else 
+		    {
+		        cout << "please enter S or s to send message to clients." << endl;
+		    }
+		}
+
     }   
     close(client_sockfd);
 }
