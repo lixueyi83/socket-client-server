@@ -41,9 +41,9 @@ int main()
 /*  We can now read/write via server_sockfd.  */
     while(1)
     {
-	static int cnts = 0; 
-	cnts++;
-	printf("client is connected with server_sockfd = %d ---------- %d\n", server_sockfd, cnts);
+	    static int cnts = 0; 
+	    cnts++;
+	    printf("client is connected with server_sockfd = %d ---------- %d\n", server_sockfd, cnts);
 
         read(server_sockfd, &read_buf, 2);
         printf("\nclient-read: %x %x\n", 0xff & read_buf[0], 0xff & read_buf[1]);
@@ -56,7 +56,7 @@ int main()
         }
 
         read(server_sockfd, &read_buf, 10);
-	printf("client-rcvd msg: %s\n", read_buf);
+	    printf("client-rcvd msg: %s\n", read_buf);
         write(server_sockfd, &send_buf, 10);
         printf("client-send msg: %s\n", send_buf);
     }

@@ -46,26 +46,26 @@ void client_handler(int client_sockfd)
     /*  We can now read/write to client on client_sockfd.  */
     while(1)
     {    
-	static int cnts = 0; 
-	cnts++;
-	printf("server is connected with client_sockfd = %d ---------- %d\n", client_sockfd, cnts);
+	    static int cnts = 0; 
+	    cnts++;
+	    printf("server is connected with client_sockfd = %d ---------- %d\n", client_sockfd, cnts);
 
-	char cmd;
-	memset(recv_buf, 0, sizeof(char));
+	    char cmd;
+	    memset(recv_buf, 0, sizeof(char));
 
         if(!check_socket_connection(client_sockfd))
         {
             cout << "socket connection failed." << endl;
-	    close(client_sockfd);
+	        close(client_sockfd);
             return; 
         }
 
     	write(client_sockfd, &send_buf, 10);
-	printf("server-send msg: %s\n", send_buf);
-	read(client_sockfd, &recv_buf, 10);
-	printf("server-rcvd msg: %s\n", recv_buf);
+	    printf("server-send msg: %s\n", send_buf);
+	    read(client_sockfd, &recv_buf, 10);
+	    printf("server-rcvd msg: %s\n", recv_buf);
 	
-	sleep(1);
+	    sleep(1);
     }   
     close(client_sockfd);
 }
