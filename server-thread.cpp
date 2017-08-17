@@ -15,6 +15,29 @@
 using namespace std;
 
 
+bool check_socket_connection(int client_sockfd)
+{
+    bool ret = false;
+    char recv_buf = 0;
+    unsigned char heart_beat_cmd[2] = {0xaa,0x55};
+
+    write(client_sockfd, &heart_beat_cmd, 2);
+    read(client_sockfd, &recv_buf, 1);
+
+    if(0xa5 == (recv_buf&0xff))
+    {
+        cout << "heart_beat_cmd ACK 0xa5 rcvd." << endl;
+        ret = true;
+    }
+    else 
+    {
+        ret = false;
+    }
+
+    return ret;
+}
+
+
 void client_handler(int client_sockfd)
 {
 	char recv_buf[10];
@@ -23,27 +46,26 @@ void client_handler(int client_sockfd)
     /*  We can now read/write to client on client_sockfd.  */
     while(1)
     {    
-		char cmd;
-		memset(recv_buf, 0, sizeof(char));
-		
-		cout << "enter S or s to send a message to clients: ";
-		while(cin >> cmd)
-		{
-		    if('S' == cmd or 's' == cmd)
-		    {
-		    	cout << "message will be sent to clients." << endl;
-		    	write(client_sockfd, &send_buf, 10);
-				printf("server-send: %s\n", send_buf);
-				read(client_sockfd, &recv_buf, 10);
-				printf("server-rcvd: %s\n", recv_buf);
-				break;
-		    }
-		    else 
-		    {
-		        cout << "please enter S or s to send message to clients." << endl;
-		    }
-		}
+	static int cnts = 0; 
+	cnts++;
+	printf("server is connected with client_sockfd = %d ---------- %d\n", client_sockfd, cnts);
 
+	char cmd;
+	memset(recv_buf, 0, sizeof(char));
+
+        if(!check_socket_connection(client_sockfd))
+        {
+            cout << "socket connection failed." << endl;
+	    close(client_sockfd);
+            return; 
+        }
+
+    	write(client_sockfd, &send_buf, 10);
+	printf("server-send msg: %s\n", send_buf);
+	read(client_sockfd, &recv_buf, 10);
+	printf("server-rcvd msg: %s\n", recv_buf);
+	
+	sleep(1);
     }   
     close(client_sockfd);
 }
@@ -62,7 +84,7 @@ int main()
     /*  Name the socket.  */
 
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = inet_addr("192.168.1.144");
+    server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
     server_address.sin_port = htons(10002);
     server_len = sizeof(server_address);
     bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
