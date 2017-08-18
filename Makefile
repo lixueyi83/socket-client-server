@@ -10,7 +10,7 @@ CC=g++
 CPPFLAGS=-g -std=c++11 -pthread
 LDFLAGS=-g
 
-ALL= $(CLIENTS) $(SERVERS) 
+ALL= $(CLIENTS) $(SERVERS)  $(SELECT)
 
 all: $(ALL)
 
