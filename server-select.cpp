@@ -95,7 +95,7 @@ const char reply[50] = "Where there is a will, there is a way.";
 
 int main()
 {
-	const char* ip_addr = "192.168.1.144";
+	const char* ip_addr = "127.0.0.1";
 	int port = 10002;
 	std::thread t(socket_main, ip_addr, port);
 	t.join();
@@ -112,7 +112,7 @@ int socket_main(const char* ip_addr, int port)
     fd_set readfds, testfds;
     struct timeval timeout;
 
-/*  Create and name a socket for the server.  */
+    /*  Create and name a socket for the server.  */
 
     server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -123,7 +123,7 @@ int socket_main(const char* ip_addr, int port)
 
     bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
 
-/*  Create a connection queue and initialize readfds to handle input from server_sockfd.  */
+    /*  Create a connection queue and initialize readfds to handle input from server_sockfd.  */
 
     listen(server_sockfd, 5);
 
@@ -132,9 +132,9 @@ int socket_main(const char* ip_addr, int port)
 
     std::cout << "\n\nCoRos Socket Server is now listening on: " << ip_addr << ":" << port << endl;;
 
-/*  Now wait for clients and requests.
-    Since we have passed a null pointer as the timeout parameter, no timeout will occur.
-    The program will exit and report an error if select returns a value of less than 1.  */
+    /*  Now wait for clients and requests.
+        Since we have passed a null pointer as the timeout parameter, no timeout will occur.
+        The program will exit and report an error if select returns a value of less than 1.  */
 
     while(1) 
     {
@@ -144,31 +144,32 @@ int socket_main(const char* ip_addr, int port)
         testfds = readfds;
         timeout.tv_sec = 2;
         timeout.tv_usec = 500000;
-        timeout = {0}; // just for the sake of removing compile error
+        //timeout = {0};      /* just for the sake of removing compile error */
 
-        //printf("server waiting\n");
-        result = select(FD_SETSIZE, &testfds, (fd_set *)0, 
-            (fd_set *)0, (struct timeval *)0);
+        printf("server waiting\n");
+        result = select(FD_SETSIZE, &testfds, (fd_set *)0, (fd_set *)0, (struct timeval *)&timeout);
 
-        if(result < 1) 
+        switch(result) 
         {
-            perror("server5");
-            exit(1);
-        }
-        else if(result == 0)
-            printf("timeout\n");
-        else{}
+            case 0:
+                printf("select timeout\n");
+                return 0;
 
-/*  Once we know we've got activity,
-    we find which descriptor it's on by checking each in turn using FD_ISSET.  */
+            case -1:
+                perror("select faild or error happened");
+                exit(1);
+        }
+
+        /*  Once we know we've got activity,
+            we find which descriptor it's on by checking each in turn using FD_ISSET.  */
 
         for(fd = 0; fd < FD_SETSIZE; fd++) 
         {
             if(FD_ISSET(fd,&testfds)) 
             {
 
-/*  If the activity is on server_sockfd, it must be a request for a new connection
-    and we add the associated client_sockfd to the descriptor set.  */
+                /*  If the activity is on server_sockfd, it must be a request for a new connection
+                    and we add the associated client_sockfd to the descriptor set.  */
 
                 if(fd == server_sockfd) 
                 {
@@ -179,9 +180,9 @@ int socket_main(const char* ip_addr, int port)
                     printf("adding client on fd %d\n", client_sockfd); 
                 }
 
-/*  If it isn't the server, it must be client activity.
-    If close is received, the client has gone away and we remove it from the descriptor set.
-    Otherwise, we 'serve' the client as in the previous examples.  */
+                /*  If it isn't the server, it must be client activity.
+                    If close is received, the client has gone away and we remove it from the descriptor set.
+                    Otherwise, we 'serve' the client as in the previous examples.  */
 
                 else 
                 {
