@@ -7,14 +7,17 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <signal.h>
+
 
 int main()
 {
+    signal(SIGPIPE,SIG_IGN);
+    
     int server_sockfd;
     int len;
     struct sockaddr_in address;
     int result;
-    char send_buf[10] = "pong";
     char read_buf[10];
 
 /*  Create a socket for the client.  */
@@ -38,18 +41,17 @@ int main()
         exit(1);
     }
 
-    unsigned char id[2] = {0xa6, 0x51};
+    unsigned char id[2] = {0xa6, 0x53};
     write(server_sockfd, &id, 2);
 
 /*  We can now read/write via server_sockfd.  */
     while(1)
     {
-	    static int cnts = 0; 
-	    cnts++;
-	    printf("client is connected with server_sockfd = %d ---------- %d\n", server_sockfd, cnts);
+        static int cnts = 0; 
+        cnts++;
 
         read(server_sockfd, &read_buf, 10);
-	    printf("client-rcvd msg: %s\n", read_buf);
+        printf("client-rcvd msg: ' %s ' from server_sockfd %d --------%d\n", read_buf, server_sockfd, cnts);
     }
     close(server_sockfd);
     exit(0);

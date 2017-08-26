@@ -10,104 +10,149 @@
 #include <stdio.h>
 #include <cstring>
 #include <thread> 
+#include <signal.h>
 
 #include <iostream>
 using namespace std;
 
+int g_client1_sockfd = 0;
+int g_client2_sockfd = 0;
+int g_client3_sockfd = 0;
 
-bool check_socket_connection(int client_sockfd)
+bool check_socket_connection(int server_sockfd)
 {
-    bool ret = false;
-    char recv_buf = 0;
-    unsigned char heart_beat_cmd[2] = {0xaa,0x55};
+    unsigned char recv_buf[2];
+    socklen_t client_len;
+    struct sockaddr_in client_address;
+    int client_sockfd;
 
-    write(client_sockfd, &heart_beat_cmd, 2);
-    read(client_sockfd, &recv_buf, 1);
-
-
-    if(0xa5 == (recv_buf&0xff))
+    while(1)
     {
-        cout << "heart_beat_cmd ACK 0xa5 rcvd." << endl;
-        ret = true;
-    }
-    else 
-    {
-        ret = false;
-    }
+        /*  Accept a connection.  */
+        client_len = sizeof(client_address);
+        client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
 
-    return ret;
+        read(client_sockfd, &recv_buf, 2);
+        printf("recv_buf = %x %x\n", recv_buf[0], recv_buf[1]);
+
+        if(0xa6 == (recv_buf[0]&0xff))
+        {
+            if(0x51 == (0xff & recv_buf[1]))
+            {
+                if(g_client1_sockfd == 0)
+                {
+                    g_client1_sockfd = client_sockfd;
+                }
+                else if(g_client1_sockfd > 0 && g_client1_sockfd != client_sockfd)
+                {
+                    close(g_client1_sockfd);
+                    g_client1_sockfd = client_sockfd;
+                }
+                else{}
+                
+            }
+            else if(0x52 == (0xff & recv_buf[1]))
+            {
+                if(g_client2_sockfd == 0)
+                {
+                    g_client2_sockfd = client_sockfd;
+                }
+                else if(g_client2_sockfd > 0 && g_client2_sockfd != client_sockfd)
+                {
+                    close(g_client2_sockfd);
+                    g_client2_sockfd = client_sockfd;
+                }
+                else{}
+            }
+            else if(0x53 == (0xff & recv_buf[1]))
+            {
+                if(g_client3_sockfd == 0)
+                {
+                    g_client3_sockfd = client_sockfd;
+                }
+                else if(g_client3_sockfd > 0 && g_client3_sockfd != client_sockfd)
+                {
+                    close(g_client3_sockfd);
+                    g_client3_sockfd = client_sockfd;
+                }
+                else{}
+            }
+            else
+            {
+                cout << "\t *** unexpected client request.";
+            }
+        } 
+        else{}
+    }
 }
 
 
-void client_handler(int client_sockfd)
+void clients_handler()
 {
-	char recv_buf[10];
-	char send_buf[10] = "ping";
-
     /*  We can now read/write to client on client_sockfd.  */
     while(1)
     {    
-	    static int cnts = 0; 
-	    cnts++;
-	    printf("server is connected with client_sockfd = %d ---------- %d\n", client_sockfd, cnts);
-
-	    char cmd;
-	    memset(recv_buf, 0, sizeof(char));
-
-        if(!check_socket_connection(client_sockfd))
+        if(g_client1_sockfd)
         {
-            cout << "socket connection failed." << endl;
-	        close(client_sockfd);
-            return; 
+            char send_buf[10] = "Hi, Tony!";
+            write(g_client1_sockfd, &send_buf, 10);
+            cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
         }
 
-    	write(client_sockfd, &send_buf, 10);
-	    printf("server-send msg: %s\n", send_buf);
-	    read(client_sockfd, &recv_buf, 10);
-	    printf("server-rcvd msg: %s\n", recv_buf);
-	
+        if(g_client2_sockfd)
+        {
+            char send_buf[10] = "Hi, Lee!";
+            write(g_client2_sockfd, &send_buf, 10);
+            cout << "send command to client 2 ------ client_sockfd =  " << g_client2_sockfd << endl;
+        }
+
+        if(g_client3_sockfd)
+        {
+            char send_buf[10] = "Hi, Nola!";
+            write(g_client3_sockfd, &send_buf, 10);
+            cout << "send command to client 3 ------ client_sockfd =  " << g_client3_sockfd << endl;
+        }
+
 	    sleep(1);
     }   
-    close(client_sockfd);
 }
 
 int main()
 {
+    signal(SIGPIPE, SIG_IGN);
+
     int server_sockfd, client_sockfd;
     socklen_t server_len, client_len;
     struct sockaddr_in server_address;
-    struct sockaddr_in client_address;
+    
+    const char* ip = "127.0.0.1";
+    int port = 10005;
 
     /*  Remove any old socket and create an unnamed socket for the server.  */
-
     server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     /*  Name the socket.  */
-
     server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server_address.sin_port = htons(10002);
+    server_address.sin_addr.s_addr = inet_addr(ip);
+    server_address.sin_port = htons(port);
     server_len = sizeof(server_address);
     bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
 
     /*  Create a connection queue and wait for clients.  */
-
     listen(server_sockfd, 5);
-    
-    while(1) 
-    {
-        printf("socket server waiting for connection request from socket clients...\n");
 
-        /*  Accept a connection.  */
+    printf("socket server is listenning on %s:%d\n", ip, port);
 
-        client_len = sizeof(client_address);
-        client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
+    std::thread th1(check_socket_connection, server_sockfd);
+    //th1.detach();
 
-        cout << "new client with client_sockfd " << client_sockfd << " is connected." << endl;
+    std::thread th2(clients_handler);
+    //th2.detach();
 
-        std::thread th(client_handler, client_sockfd);
-        th.detach();
-    }
+    //th1.join();
+    //th2.join();
+
+    while(1){}
 
     return 0;
 }

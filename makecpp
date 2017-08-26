@@ -1,0 +1,54 @@
+#!/bin/bash
+
+CC=g++
+CPPFLAGS="-g -Wall -std=c++11 -pthread" 
+
+#######################################################
+## 		compile all the files explicitly
+##-----------------------------------------------------
+compile_all_explicitly()
+{
+
+	OBJ=" 	arrays_and_strings \
+			bit_manipulation \
+			c_and_c++ \
+		"
+
+	for obj in $OBJ; do	 
+		echo compiling...${obj}.cpp ---@date:$(date)
+		$CC -o $obj -g ${obj}.cpp	
+	done
+}
+
+## compile_all_explicitly
+
+
+#######################################################
+## 		compile all the files from $*
+##-----------------------------------------------------
+
+compile_all_implicitly()
+{
+	for src in $*; do
+		obj=${src%.cpp}
+		echo compiling...${obj}.cpp
+		${CC} -o $obj ${CPPFLAGS} ${obj}.cpp
+	done
+}
+
+compile_all_implicitly $*
+
+
+#######################################################
+## $1, $2,...: The parameters given to the script
+## $*: A list of all the parameters given to the script
+
+## Parameter Expansion 			Description
+## ${param:-default} 			If param is null, then set it to the value of default.
+## ${#param} 					Gives the length of param
+## ${param%word} 				From the end, removes the smallest part of param that matches word and returns the rest
+## ${param%%word} 				From the end, removes the longest part of param that matches word and returns the rest
+## ${param#word} 				From the beginning, removes the smallest part of param that matches word and returns the rest
+## ${param##word} 				From the beginning, removes the longest part of param that matches word and returns the rest
+
+
