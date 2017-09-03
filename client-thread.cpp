@@ -41,9 +41,7 @@ int main()
         exit(1);
     }
 
-
     signal(SIGPIPE, SIG_IGN);
-
 
     unsigned char id[2] = {0xa6, 0x51};
     write(server_sockfd, &id, 2);
