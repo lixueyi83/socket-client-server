@@ -3,10 +3,12 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
+#include <signal.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <cstring>
 
 int main()
 {
@@ -31,6 +33,7 @@ int main()
 /*  Now connect our socket to the server's socket.  */
 
     result = connect(server_sockfd, (struct sockaddr *)&address, len);
+    printf("client is connected with server_sockfd = %d\n", server_sockfd);
 
     if(result == -1) 
     {
@@ -38,18 +41,24 @@ int main()
         exit(1);
     }
 
+
+    signal(SIGPIPE, SIG_IGN);
+
+
     unsigned char id[2] = {0xa6, 0x51};
     write(server_sockfd, &id, 2);
 
 /*  We can now read/write via server_sockfd.  */
     while(1)
-    {
-	    static int cnts = 0; 
-	    cnts++;
-	    printf("client is connected with server_sockfd = %d ---------- %d\n", server_sockfd, cnts);
+    {   
+        unsigned char id[2] = {0xa6, 0x51};
+        write(server_sockfd, &id, 2);
 
         read(server_sockfd, &read_buf, 10);
 	    printf("client-rcvd msg: %s\n", read_buf);
+        memset(&read_buf, 0, sizeof(read_buf));
+
+        sleep(1);
     }
     close(server_sockfd);
     exit(0);

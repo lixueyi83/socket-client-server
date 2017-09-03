@@ -28,7 +28,7 @@ bool check_socket_connection(int server_sockfd)
 
     while(1)
     {
-        /*  Accept a connection.  */
+        /*  Accept a connection.  By default accept is blockking */
         client_len = sizeof(client_address);
         client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
 
@@ -89,6 +89,7 @@ bool check_socket_connection(int server_sockfd)
 
 void clients_handler()
 {
+    char recv_buf[2] = {0,0};
     /*  We can now read/write to client on client_sockfd.  */
     while(1)
     {    
@@ -97,6 +98,13 @@ void clients_handler()
             char send_buf[10] = "Hi, Tony!";
             write(g_client1_sockfd, &send_buf, 10);
             cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
+            
+            int ret = read(g_client1_sockfd, &recv_buf, 2);
+            if(ret <= 0) 
+                printf("No message received.\n"); 
+            else 
+                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+            recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
         if(g_client2_sockfd)
@@ -104,6 +112,13 @@ void clients_handler()
             char send_buf[10] = "Hi, Lee!";
             write(g_client2_sockfd, &send_buf, 10);
             cout << "send command to client 2 ------ client_sockfd =  " << g_client2_sockfd << endl;
+
+            int ret = read(g_client1_sockfd, &recv_buf, 2);
+            if(ret <= 0) 
+                printf("No message received.\n"); 
+            else 
+                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+            recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
         if(g_client3_sockfd)
@@ -111,9 +126,16 @@ void clients_handler()
             char send_buf[10] = "Hi, Nola!";
             write(g_client3_sockfd, &send_buf, 10);
             cout << "send command to client 3 ------ client_sockfd =  " << g_client3_sockfd << endl;
+
+            int ret = read(g_client1_sockfd, &recv_buf, 2);
+            if(ret <= 0) 
+                printf("No message received.\n"); 
+            else 
+                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+            recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
-	    sleep(1);
+	//sleep(1);
     }   
 }
 
