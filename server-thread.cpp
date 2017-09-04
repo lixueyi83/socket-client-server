@@ -15,6 +15,9 @@
 #include <iostream>
 using namespace std;
 
+int read_timeout(int fd, int sec);
+
+
 int g_client1_sockfd = 0;
 int g_client2_sockfd = 0;
 int g_client3_sockfd = 0;
@@ -34,6 +37,7 @@ bool check_socket_connection(int server_sockfd)
 
         read(client_sockfd, &recv_buf, 2);
         printf("recv_buf = %x %x\n", recv_buf[0], recv_buf[1]);
+
 
         if(0xa6 == (recv_buf[0]&0xff))
         {
@@ -97,12 +101,30 @@ void clients_handler()
         {
             char send_buf[10] = "Hi, Tony!";
             write(g_client1_sockfd, &send_buf, 10);
-            //cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
+            cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
             
-            int ret = read(g_client1_sockfd, &recv_buf, 2);
-            if(ret > 0)
-                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
-            else{}  //printf("No message received.\n"); 
+            int ret = read_timeout(g_client1_sockfd, 2);
+            if(ret == 0)
+            {
+                int ret = read(g_client1_sockfd, &recv_buf, 2);
+
+                if(ret > 0)
+                {
+                    //printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+                }
+                else
+                {
+                    close(g_client1_sockfd);
+                    g_client1_sockfd = 0;
+                }
+            }
+            else 
+            {
+                printf("\t *** read timeout\n");
+                close(g_client1_sockfd);
+                g_client1_sockfd = 0;
+            }
+            
             recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
@@ -115,7 +137,6 @@ void clients_handler()
             int ret = read(g_client2_sockfd, &recv_buf, 2);
             if(ret > 0)
                 printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
-            else{} //printf("No message received.\n"); 
             recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
@@ -128,8 +149,6 @@ void clients_handler()
             int ret = read(g_client3_sockfd, &recv_buf, 2);
             if(ret > 0)
                 printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
-            else{} //printf("No message received.\n"); 
-
             recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
@@ -164,15 +183,12 @@ int main()
     printf("socket server is listenning on %s:%d\n", ip, port);
 
     std::thread th1(check_socket_connection, server_sockfd);
-    //th1.detach();
-
     std::thread th2(clients_handler);
-    //th2.detach();
 
-    //th1.join();
-    //th2.join();
+    th1.join();
+    th2.join();
 
-    while(1){}
+    //while(1){}
 
     return 0;
 }
@@ -185,7 +201,8 @@ int main()
 /**************************************************************************
  *  read_timeout: read timeout detection, does not include read operation
  *  return value: 0, success; -1, fail and set errno = ETIMEDOUT
-*/
+ *  select will return 1 if the remote client disconnected and in this case if read return 0, 
+  * the client_sockfd shall be closed.*/
 int read_timeout(int fd, int sec)
 {
     int ret = 0;
@@ -198,6 +215,7 @@ int read_timeout(int fd, int sec)
         struct timeval wait_time;
         wait_time.tv_sec = sec;
         wait_time.tv_usec = 0;
+
         do
         {
             ret = select(fd+1, &read_set, NULL, NULL, &wait_time);
@@ -209,11 +227,12 @@ int read_timeout(int fd, int sec)
             ret = -1;
             errno = ETIMEDOUT;
         }
-        else if(ret == 1)
+        else  
         {
-            ret = 0;
+            /* check if there is something to read */
+            if(FD_ISSET(fd,&read_set))
+                ret = 0;
         }
-        else {}
     }
 
     return ret;
@@ -473,7 +492,10 @@ Select:
     The select function will return if any of the descriptors in the readfds set are ready for reading, if any
     in the writefds set are ready for writing, or if any in errorfds have an error condition. If none of these
     conditions apply, select will return after an interval specified by timeout . If the timeout parameter is
-    a null pointer and there is no activity on the sockets, the call will block forever.
+    a null pointer and there is no activity on the sockets, the call will block forever. If there is 2s timeout set,
+    and after 2s if there is no activity detected and the call just return 0, namely timeout occured.
+    *** If the remove client has been stopped or exited the select in server side will still return 1, and in this 
+    case the read function shall return 0, and after that the client_sockfd shall be closed from the server side. 
 
     When select returns, the descriptor sets will have been modified to indicate which descriptors are
     ready for reading or writing or have errors. You should use FD_ISSET to test them, to determine the

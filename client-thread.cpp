@@ -41,7 +41,7 @@ int main()
         exit(1);
     }
 
-    signal(SIGPIPE, SIG_IGN);
+    //signal(SIGPIPE, SIG_IGN);
 
     unsigned char id[2] = {0xa6, 0x51};
     write(server_sockfd, &id, 2);
@@ -55,8 +55,9 @@ int main()
         read(server_sockfd, &read_buf, 10);
 	    printf("client-rcvd msg: %s\n", read_buf);
         memset(&read_buf, 0, sizeof(read_buf));
+        printf("clear msg: %s\n", read_buf);
 
-        sleep(1);
+        sleep(3);
     }
     close(server_sockfd);
     exit(0);
