@@ -16,7 +16,9 @@
 #include <cstring>
 
 /*
-
+Links:
+    1. http://blog.csdn.net/lingfengtengfei/article/details/12392449 
+    2. 
 Select:
 
     Quite often when you’re writing Linux applications, you may need to examine the state of a number of

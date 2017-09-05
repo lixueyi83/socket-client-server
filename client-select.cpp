@@ -31,19 +31,23 @@ int main()
 
     result = connect(sockfd, (struct sockaddr *)&address, len);
 
-    if(result == -1) {
+    if(result == -1) 
+    {
         perror("oops: client3");
         exit(1);
     }
 
 
 /*  We can now read/write via sockfd.  */
-    for(int i=0; i< 10; i++)
+    //for(int i=0; i< 10; i++)
+    while(1)
     {
-	write(sockfd, &ch, 50);
-	read(sockfd, &ch, 50);
-	printf("char from server = %s\n", ch);
-	sleep(1);
+        unsigned char send_buf[2] = {0xa6,0x51};
+    	write(sockfd, &send_buf, 50);
+
+    	read(sockfd, &ch, 50);
+    	printf("char from server = %s\n", ch);
+    	sleep(1);
     }
     close(sockfd);
     exit(0);

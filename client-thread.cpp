@@ -16,7 +16,6 @@ int main()
     int len;
     struct sockaddr_in address;
     int result;
-    char send_buf[10] = "pong";
     char read_buf[10];
 
 /*  Create a socket for the client.  */
@@ -27,7 +26,7 @@ int main()
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    address.sin_port = htons(10005);
+    address.sin_port = htons(10006);
     len = sizeof(address);
 
 /*  Now connect our socket to the server's socket.  */
@@ -49,15 +48,14 @@ int main()
 /*  We can now read/write via server_sockfd.  */
     while(1)
     {   
-        unsigned char id[2] = {0xa6, 0x51};
-        write(server_sockfd, &id, 2);
+        unsigned char send_buf[2] = {0xa6, 0x51};
+        write(server_sockfd, &send_buf, 2);
 
         read(server_sockfd, &read_buf, 10);
 	    printf("client-rcvd msg: %s\n", read_buf);
         memset(&read_buf, 0, sizeof(read_buf));
-        printf("clear msg: %s\n", read_buf);
 
-        sleep(3);
+        sleep(1);
     }
     close(server_sockfd);
     exit(0);

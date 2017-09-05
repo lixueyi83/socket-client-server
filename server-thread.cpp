@@ -11,6 +11,7 @@
 #include <cstring>
 #include <thread> 
 #include <signal.h>
+#include <mutex>
 
 #include <iostream>
 using namespace std;
@@ -18,9 +19,40 @@ using namespace std;
 int read_timeout(int fd, int sec);
 
 
+std::mutex read_mtx;
+
 int g_client1_sockfd = 0;
+unsigned int g_client1_sockfd_cnt = 0;
 int g_client2_sockfd = 0;
+int g_client2_sockfd_cnt = 0;
 int g_client3_sockfd = 0;
+int g_client3_sockfd_cnt = 0;
+
+
+void heart_beat_monitor()
+{
+    while(1)
+    {
+        {
+            std::lock_guard<std::mutex> lock(read_mtx);
+
+            if(g_client1_sockfd == 0) continue;
+
+            if(g_client1_sockfd_cnt > 5)
+            {
+                printf("\t *** heart beat timeout\n");
+                close(g_client1_sockfd);
+                g_client1_sockfd = 0;
+            }
+            else
+            {
+                g_client1_sockfd_cnt++;
+            }
+        }
+
+        sleep(1);
+    }
+}
 
 bool check_socket_connection(int server_sockfd)
 {
@@ -43,6 +75,8 @@ bool check_socket_connection(int server_sockfd)
         {
             if(0x51 == (0xff & recv_buf[1]))
             {
+                std::lock_guard<std::mutex> lock(read_mtx);
+                
                 if(g_client1_sockfd == 0)
                 {
                     g_client1_sockfd = client_sockfd;
@@ -99,21 +133,33 @@ void clients_handler()
     {    
         if(g_client1_sockfd)
         {
+            int ret = 0;
             char send_buf[10] = "Hi, Tony!";
-            write(g_client1_sockfd, &send_buf, 10);
-            cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
+
+        #ifdef TIMEOUT_DISABLE
+            ret = write(g_client1_sockfd, &send_buf, 10);
+            if(ret > 0)
+                cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
+
+            ret = read(g_client1_sockfd, &recv_buf, 2);
+            if(ret > 0)
+                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+
             
-            int ret = read_timeout(g_client1_sockfd, 2);
-            if(ret == 0)
+        #else
+            ret = read_timeout(g_client1_sockfd, 2);
+            if(ret == false)
             {
                 int ret = read(g_client1_sockfd, &recv_buf, 2);
 
                 if(ret > 0)
                 {
                     //printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+                    g_client1_sockfd_cnt--;
                 }
                 else
                 {
+                    printf("\t *** client_sockfd is closed.\n");
                     close(g_client1_sockfd);
                     g_client1_sockfd = 0;
                 }
@@ -124,8 +170,11 @@ void clients_handler()
                 close(g_client1_sockfd);
                 g_client1_sockfd = 0;
             }
-            
-            recv_buf[0] = 0; recv_buf[1] = 0;
+
+            ret = write(g_client1_sockfd, &send_buf, 10);
+            if(ret > 0)
+                cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
+        #endif 
         }
 
         if(g_client2_sockfd)
@@ -152,6 +201,8 @@ void clients_handler()
             recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
+        memset(recv_buf, 0, sizeof(recv_buf));
+
 	//sleep(1);
     }   
 }
@@ -160,12 +211,12 @@ int main()
 {
     signal(SIGPIPE, SIG_IGN);
 
-    int server_sockfd, client_sockfd;
-    socklen_t server_len, client_len;
+    int server_sockfd;
+    socklen_t server_len;
     struct sockaddr_in server_address;
     
     const char* ip = "127.0.0.1";
-    int port = 10005;
+    int port = 10006;
 
     /*  Remove any old socket and create an unnamed socket for the server.  */
     server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -205,7 +256,7 @@ int main()
   * the client_sockfd shall be closed.*/
 int read_timeout(int fd, int sec)
 {
-    int ret = 0;
+    bool ret = false;
     if(sec > 0)
     {
         fd_set read_set;
@@ -224,14 +275,12 @@ int read_timeout(int fd, int sec)
 
         if(ret == 0)
         {
-            ret = -1;
+            ret = true;
             errno = ETIMEDOUT;
         }
         else  
         {
-            /* check if there is something to read */
-            if(FD_ISSET(fd,&read_set))
-                ret = 0;
+            ret = false;
         }
     }
 
@@ -267,7 +316,7 @@ int write_timeout(int fd, int sec)
         }  
         else if(ret == 1)  /* within wait_time, event came */ 
         {
-            ret = 0;    /* return success */
+            ret = false;    /* return success */
         } 
         else {}
     }  
