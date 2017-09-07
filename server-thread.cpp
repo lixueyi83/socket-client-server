@@ -19,7 +19,7 @@ using namespace std;
 /**************************************************************************
  *  Function declarations 
  */
-bool accept_con_request(int server_sockfd);
+bool accept_connect_request(int server_sockfd);
 void process_lopp();
 void clear_read_buffer(int sockfd);
 int read_timeout(int fd, int sec);
@@ -87,7 +87,7 @@ int main()
 
     printf("socket server is listenning on %s:%d\n", ip, port);
 
-    std::thread th1(accept_con_request, server_sockfd);
+    std::thread th1(accept_connect_request, server_sockfd);
     std::thread th2(process_lopp);
 
     th1.join();
@@ -98,9 +98,9 @@ int main()
 
 
 /**************************************************************************
- *  accept_con_request 
+ *  accept_connect_request 
  */
-bool accept_con_request(int server_sockfd)
+bool accept_connect_request(int server_sockfd)
 {
     int ret;
     int client_sockfd;
@@ -111,6 +111,8 @@ bool accept_con_request(int server_sockfd)
 
     while(1)
     {
+        memset(recv_buf, 0, sizeof(recv_buf));
+
         /*  Accept a connection.  By default accept is blockking */
         client_len = sizeof(client_address);
         client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
@@ -198,21 +200,24 @@ void process_lopp()
     /*  We can now read/write to client on client_sockfd.  */
     while(1)
     {    
+        memset(recv_buf, 0, sizeof(recv_buf));
+
         if(g_client1_sockfd)
         {
             int ret = 0;
             char send_buf[10] = "Hi, Tony!";
 
-        #ifdef TIMEOUT_DISABLE
             ret = write(g_client1_sockfd, &send_buf, 10);
-            if(ret > 0)
-                cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
+            if(ret < 0)
+            {
+                printf("\t *** socket server write() error!\n");
+            }
 
+        #ifdef TIMEOUT_DISABLE
             ret = read(g_client1_sockfd, &recv_buf, 2);
             if(ret > 0)
                 printf("process_lopp: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
 
-            
         #else
             ret = read_timeout(g_client1_sockfd, 2);
             if(ret == false)
@@ -236,10 +241,6 @@ void process_lopp()
                 close(g_client1_sockfd);
                 g_client1_sockfd = 0;
             }
-
-            ret = write(g_client1_sockfd, &send_buf, 10);
-            if(ret > 0)
-                cout << "send command to client 1 ------ client_sockfd =  " << g_client1_sockfd << endl;
         #endif 
         }
 
@@ -266,8 +267,7 @@ void process_lopp()
                 printf("process_lopp: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
             recv_buf[0] = 0; recv_buf[1] = 0;
         }
-
-        memset(recv_buf, 0, sizeof(recv_buf));
+        sleep(1);
     }   
 }
 

@@ -15,7 +15,7 @@ int main()
     int server_sockfd;
     int len;
     struct sockaddr_in address;
-    int result;
+    int ret;
     char read_buf[10];
 
 /*  Create a socket for the client.  */
@@ -32,10 +32,14 @@ int main()
 
 /*  Now connect our socket to the server's socket.  */
 
-    result = connect(server_sockfd, (struct sockaddr *)&address, len);
+    ret = connect(server_sockfd, (struct sockaddr *)&address, len);
+    if(ret < 0)
+    {
+        printf("\t *** socket client connect() error!\n");
+    }
     printf("client is connected with server_sockfd = %d\n", server_sockfd);
 
-    if(result == -1) 
+    if(ret == -1) 
     {
         perror("oops: client3");
         exit(1);
@@ -43,20 +47,26 @@ int main()
 
     //signal(SIGPIPE, SIG_IGN);
 
-    unsigned char id[2] = {0xa6, 0x51};
-    write(server_sockfd, &id, 2);
-
 /*  We can now read/write via server_sockfd.  */
     while(1)
     {   
-        unsigned char send_buf[2] = {0xa6, 0x51};
-        write(server_sockfd, &send_buf, 2);
-
-        read(server_sockfd, &read_buf, 10);
-	    printf("client-rcvd msg: %s\n", read_buf);
         memset(&read_buf, 0, sizeof(read_buf));
-
-        sleep(1);
+        ret = read(server_sockfd, &read_buf, 10);
+        if(ret < 0)
+        {
+            printf("\t *** socket client read() error!\n");
+        }
+        else
+        {
+            printf("client-rcvd msg: %s\n", read_buf);
+        }
+	    
+        unsigned char send_buf[2] = {0xa6, 0x51};
+        ret = write(server_sockfd, &send_buf, 2);
+        if(ret < 0)
+        {
+            printf("\t *** socket client read() error!\n");
+        }
     }
     close(server_sockfd);
     exit(0);
