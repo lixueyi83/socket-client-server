@@ -18,7 +18,7 @@
 /*
 Links:
     1. http://blog.csdn.net/lingfengtengfei/article/details/12392449 
-    2. 
+    2. http://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
 Select:
 
     Quite often when you’re writing Linux applications, you may need to examine the state of a number of

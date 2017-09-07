@@ -25,7 +25,8 @@ int main()
 /*  Name the socket, as agreed with the server.  */
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    //address.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+    address.sin_addr.s_addr = inet_addr("192.168.0.14"); 
     address.sin_port = htons(10006);
     len = sizeof(address);
 

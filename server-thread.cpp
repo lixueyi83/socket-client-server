@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -12,71 +13,134 @@
 #include <thread> 
 #include <signal.h>
 #include <mutex>
-
 #include <iostream>
 using namespace std;
 
+/**************************************************************************
+ *  Function declarations 
+ */
+bool accept_con_request(int server_sockfd);
+void process_lopp();
+void clear_read_buffer(int sockfd);
 int read_timeout(int fd, int sec);
+int write_timeout(int fd, int sec);
+int accept_timeout(int fd, struct sockaddr_in *addr, int sec);
 
-
-std::mutex read_mtx;
-
+/**************************************************************************
+ *  global variables definition 
+ */
 int g_client1_sockfd = 0;
-unsigned int g_client1_sockfd_cnt = 0;
 int g_client2_sockfd = 0;
-int g_client2_sockfd_cnt = 0;
 int g_client3_sockfd = 0;
-int g_client3_sockfd_cnt = 0;
 
 
-void heart_beat_monitor()
+/**************************************************************************
+ *  main 
+ */
+int main()
 {
-    while(1)
+    int ret;
+    int server_sockfd;
+    socklen_t server_len;
+    struct sockaddr_in server_address;
+
+    /* ignore SIGPIPE signal */
+    signal(SIGPIPE, SIG_IGN);
+    
+    //const char* ip = "127.0.0.1";
+    const char* ip = "192.168.0.14";
+    int port = 10006;
+
+    /*  Remove any old socket and create an unnamed socket for the server.  */
+    server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(server_sockfd < 0)
     {
-        {
-            std::lock_guard<std::mutex> lock(read_mtx);
-
-            if(g_client1_sockfd == 0) continue;
-
-            if(g_client1_sockfd_cnt > 5)
-            {
-                printf("\t *** heart beat timeout\n");
-                close(g_client1_sockfd);
-                g_client1_sockfd = 0;
-            }
-            else
-            {
-                g_client1_sockfd_cnt++;
-            }
-        }
-
-        sleep(1);
+        printf("\t *** socket server socket() error!\n");
     }
+
+    /*  set socket options */
+    int reuse = 1;
+    ret = setsockopt(server_sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int));
+    if(ret < 0)
+    {
+        printf("\t *** socket server setsockopt() error!\n");
+    }
+
+    /*  Name the socket.  */
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = inet_addr(ip);
+    server_address.sin_port = htons(port);
+    server_len = sizeof(server_address);
+
+    ret = bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
+    if(ret < 0)
+    {
+        printf("\t *** socket server bind() error!\n");
+    }
+
+    /*  Create a connection queue and wait for clients.  */
+    ret = listen(server_sockfd, 20);
+    if(ret < 0)
+    {
+        printf("\t *** socket server listen() error!\n");
+    }
+
+    printf("socket server is listenning on %s:%d\n", ip, port);
+
+    std::thread th1(accept_con_request, server_sockfd);
+    std::thread th2(process_lopp);
+
+    th1.join();
+    th2.join();
+
+    return 0;
 }
 
-bool check_socket_connection(int server_sockfd)
+
+/**************************************************************************
+ *  accept_con_request 
+ */
+bool accept_con_request(int server_sockfd)
 {
-    unsigned char recv_buf[2];
+    int ret;
+    int client_sockfd;
     socklen_t client_len;
     struct sockaddr_in client_address;
-    int client_sockfd;
+    unsigned char send_buf[2];
+    unsigned char recv_buf[2];
 
     while(1)
     {
         /*  Accept a connection.  By default accept is blockking */
         client_len = sizeof(client_address);
         client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
+        if(client_sockfd < 0)
+        {
+            printf("\t *** socket server accept() error!\n");
+        }
 
-        read(client_sockfd, &recv_buf, 2);
-        printf("recv_buf = %x %x\n", recv_buf[0], recv_buf[1]);
+        clear_read_buffer(client_sockfd);
 
+        ret = write(client_sockfd, &send_buf, 2);
+        if(ret < 0)
+        {
+            printf("\t *** socket server write() error!\n");
+        }
 
+        ret = read(client_sockfd, &recv_buf, 2);
+        if(ret < 0)
+        {
+            printf("\t *** socket server read() error!\n");
+        }
+        else
+        {
+            printf("recv_buf = %x %x\n", recv_buf[0], recv_buf[1]);
+        }
+       
         if(0xa6 == (recv_buf[0]&0xff))
         {
             if(0x51 == (0xff & recv_buf[1]))
-            {
-                std::lock_guard<std::mutex> lock(read_mtx);
-                
+            {                
                 if(g_client1_sockfd == 0)
                 {
                     g_client1_sockfd = client_sockfd;
@@ -125,7 +189,10 @@ bool check_socket_connection(int server_sockfd)
 }
 
 
-void clients_handler()
+/**************************************************************************
+ *  process_lopp 
+ */
+void process_lopp()
 {
     char recv_buf[2] = {0,0};
     /*  We can now read/write to client on client_sockfd.  */
@@ -143,7 +210,7 @@ void clients_handler()
 
             ret = read(g_client1_sockfd, &recv_buf, 2);
             if(ret > 0)
-                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+                printf("process_lopp: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
 
             
         #else
@@ -154,8 +221,7 @@ void clients_handler()
 
                 if(ret > 0)
                 {
-                    //printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
-                    g_client1_sockfd_cnt--;
+                    //printf("process_lopp: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
                 }
                 else
                 {
@@ -185,7 +251,7 @@ void clients_handler()
             
             int ret = read(g_client2_sockfd, &recv_buf, 2);
             if(ret > 0)
-                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+                printf("process_lopp: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
             recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
@@ -197,58 +263,34 @@ void clients_handler()
 
             int ret = read(g_client3_sockfd, &recv_buf, 2);
             if(ret > 0)
-                printf("clients_handler: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
+                printf("process_lopp: recv_buf = %x %x, ret = %d\n", 0xff&recv_buf[0], 0xff&recv_buf[1], ret);
             recv_buf[0] = 0; recv_buf[1] = 0;
         }
 
         memset(recv_buf, 0, sizeof(recv_buf));
-
-	//sleep(1);
     }   
 }
 
-int main()
+
+/**************************************************************************
+ *  clear_read_buffer 
+ */
+void clear_read_buffer(int sockfd)
 {
-    signal(SIGPIPE, SIG_IGN);
+    int nread;
+    char temp[256];
 
-    int server_sockfd;
-    socklen_t server_len;
-    struct sockaddr_in server_address;
-    
-    const char* ip = "127.0.0.1";
-    int port = 10006;
-
-    /*  Remove any old socket and create an unnamed socket for the server.  */
-    server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    /*  Name the socket.  */
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = inet_addr(ip);
-    server_address.sin_port = htons(port);
-    server_len = sizeof(server_address);
-    bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
-
-    /*  Create a connection queue and wait for clients.  */
-    listen(server_sockfd, 5);
-
-    printf("socket server is listenning on %s:%d\n", ip, port);
-
-    std::thread th1(check_socket_connection, server_sockfd);
-    std::thread th2(clients_handler);
-
-    th1.join();
-    th2.join();
-
-    //while(1){}
-
-    return 0;
+    ioctl(sockfd, FIONREAD, &nread);
+    if(nread)
+    {
+        read(sockfd, temp, nread);
+    }
 }
 
 
 /*  check link: http://www.2cto.com/os/201510/445453.html
  *  int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,struct timeval *timeout);
  */ 
-
 /**************************************************************************
  *  read_timeout: read timeout detection, does not include read operation
  *  return value: 0, success; -1, fail and set errno = ETIMEDOUT
